@@ -2,7 +2,7 @@
 
 Groupe No 4
 * MAPINGUE TANAKAM Winnie (@wmap0001)
-* Mbaveng Anangmo Franck (@identifiant_Gitlab_2)
+* Mbaveng Anangmo Franck (@fmba0004)
 * TITALEM KAMGANG Stephane (@stit0001)
 
 
