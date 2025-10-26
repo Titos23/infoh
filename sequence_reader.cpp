@@ -9,7 +9,7 @@ string readQuerry() {
     // Check if file opened successfully
     if (!queryFile.is_open()) {
         cout << "ERROR: Could not open file 'query/P00533.fasta'" << endl;
-        return "";
+        return "-1";
     }
     
     string firstLine;// first line to skip
@@ -22,6 +22,7 @@ string readQuerry() {
         sequence += line;
     }
 
+    
     
     queryFile.close();
     return sequence;
