@@ -1,0 +1,169 @@
+#!/bin/bash
+
+TEMPFOLDER=temp_tests
+
+EXECUTABLE=projetprelim
+
+TESTFILES="query_testprelim/testprelim*.fasta"
+DB="database/uniprot_sprot.fasta"
+SOLUTIONFILESPATH="solution_testprelim"
+
+exec 3>/dev/null 4>&1
+# exec 3>tableau.txt 4>details.txt
+
+
+echo -e "-----------------------------------------------------------------------"  >&4
+echo -e "Début des tests préliminaires:" >&4
+echo -e "-----------------------------------------------------------------------"  >&4
+echo -e "\n1) Vérification de la plateforme de test:\n" >&4
+ARCH=$(cat /etc/issue 2>/dev/null)
+ARCH=${ARCH%% \\*}
+if [ "$ARCH" = "Ubuntu 24.04.3 LTS" ]; then
+	echo -e "Test exécuté sur ${ARCH}: OK" >&4
+	echo -en "V"  >&3
+else
+	echo -e "Il semble que vous exécutiez ce test sur une autre plateforme que la machine virtuelle du cours.\nIl est possible que le script de test échoue, sans qu'il y ait forcément de problème avec votre projet, si les outils nécessaires au script de test ne sont pas disponibles sur votre machine.\nA contrario, il se pourrait que le script ne renvoie aucune erreur mais que votre projet ne s'exécute pas correctement sur la machine virtuelle du cours (cela peut arriver car une erreur peut se manifester sur une plateforme mais pas sur une autre).\nPour éviter toute mauvaise surprise, il est fortement conseillé de tester votre projet sur la machine virtuelle du cours, qui sera la plateforme utilisée pour l'évaluation." >&4
+	echo -en "X"  >&3
+fi
+
+echo -e "\n2) Vérification du dépôt git:" >&4
+if [ ! -d ".git" ]; then
+	echo -e "Ce dossier ne contient pas un dépôt (pas de sous-dossier .git). Ce script ne peut donc pas vérifier si les fichiers utilisés pour le test sont bien synchronisés avec votre dépôt git." >&4
+	echo -en "\tX"  >&3
+else
+	echo -e "\n2a) Dernier commit local:\n" >&4
+	echo -e "Ces tests utilisent la version du commit suivant:" >&4
+	git log -1 >&4
+	LASTCOMMIT=$(git log -1 --format=%cd origin/main)
+	echo -en "\t${LASTCOMMIT//[$'\t\r\n']}" >&3
+	echo -e "\n2b) Synchronisation avec le dépôt git sur gitlab.ulb.be:\n" >&4
+	git fetch >&4
+	git status >&4
+	echo -e "\nSi la commande liste des fichiers sources non synchronisés ou si elle indique que votre branche locale est en avance ou en retard d'un ou plusieurs commit(s), cela signifie que ce test utilise des versions différentes des fichiers que ceux sur votre dépôt git. Dans ce cas, veuillez synchroniser votre dépôt avant de refaire ce test." >&4
+fi
+
+
+# Tous les tests sont effectués dans un dossier temporaire
+mkdir -p $TEMPFOLDER
+rsync -a --exclude=$TEMPFOLDER . $TEMPFOLDER/
+cd $TEMPFOLDER
+
+
+TOUT_FONCTIONNE=true
+CONTINUE=true
+
+while [ $CONTINUE == true ] && [ $TOUT_FONCTIONNE == true ]
+do
+
+echo -e "\n3) Tests de compilation:" >&4
+echo -e "\n3a) Présence du Makefile:" >&4
+if [ ! -f "Makefile" ]; then
+	echo -e "\nPas de fichier Makefile à la racine du dépôt, impossible de continuer les tests automatisés" >&4
+	echo -en "\tX"  >&3
+	TOUT_FONCTIONNE=false
+	cd ..
+	continue
+else
+	echo -e "\nFichier Makefile présent: OK" >&4
+	echo -en "\tV"  >&3
+fi
+
+make clean >/dev/null 2>/dev/null
+rm *.o >/dev/null 2>/dev/null
+rm $EXECUTABLE >/dev/null 2>/dev/null
+
+
+echo -e "\n3b) Tentative de compilation avec la commande 'make $EXECUTABLE':" >&4
+MAKEOUTPUT=$(make $EXECUTABLE 2>&1)
+if [ $? -ne 0 ]; then
+		echo -e "\nLa compilation de votre projet avec la commande 'make $EXECUTABLE' a échoué avec l'erreur:" >&4
+		echo -e "$MAKEOUTPUT" >&4
+		echo -e "\nImpossible de continuer les tests automatisés" >&4
+		echo -en "\tX"  >&3
+		TOUT_FONCTIONNE=false
+		continue
+else
+	if [ ! -f "$EXECUTABLE" ]; then
+		echo -e "\nVérifiez votre Makefile: La commande 'make $EXECUTABLE' s'est terminée avec succès mais n'a pas généré l'exécutable '$EXECUTABLE'. Il est donc impossible de continuer les tests automatisés." >&4
+		echo -en "\tX"  >&3
+		TOUT_FONCTIONNE=false
+		continue
+	fi
+	echo -e "\nCompilation terminée avec succès" >&4
+	echo -en "\tV"  >&3
+fi
+
+echo -e "\n4) Vérification de la présence des fichiers de la base de données:" >&4
+
+if [[ ! -f "$DB.psq" ]]; then
+	echo -e "\nLe fichier binaire $DB.psq n'existe pas, celui-ci est nécessaire pour le test, veuillez le copier dans votre dossier local (pas sur votre dépôt git) et recommencer le test." >&4
+	echo -en "\tX"  >&3
+	TOUT_FONCTIONNE=false
+	continue
+fi
+
+if [[ ! -f "$DB.pin" ]]; then
+    echo -e "\nLe fichier binaire $DB.pin n'existe pas, celui-ci est nécessaire pour le test, veuillez le copier dans votre dossier local (pas sur votre dépôt git) et recommencer le test." >&4
+	echo -en "\tX"  >&3
+	TOUT_FONCTIONNE=false
+	continue
+fi
+
+if [[ ! -f "$DB.phr" ]]; then
+    echo -e "\nLe fichier binaire $DB.phr n'existe pas, celui-ci est nécessaire pour le test, veuillez le copier dans votre dossier local (pas sur votre dépôt git) et recommencer le test." >&4
+	echo -en "\tX"  >&3
+	TOUT_FONCTIONNE=false
+	continue
+fi
+
+echo -e "\nTous les fichiers binaires nécessaires sont présents (attention, ils sont nécessaires localement pour les tests mais ne devraient pas être copiés sur votre dépôt git)." >&4
+
+if [[ -f "$DB" ]]; then
+    echo -e "\nLe fichier fasta $DB ne devrait pas être utilisé par votre programme." >&4
+    echo -e "\nCelui-ci a été temporairement renommé $DB.temp." >&4
+    mv "$DB" "$DB.temp"
+fi
+
+
+echo -e "\n5) Tests d'éxecution:" >&4
+
+i=0
+for test_file in $TESTFILES
+do
+	i=$(( i + 1 ))
+	echo -e "\nTest $i :"  >&4
+	OUTPUT=$(./$EXECUTABLE $test_file $DB)
+	solution_file="$SOLUTIONFILESPATH/$(basename $test_file .fasta)-solution.txt"
+	EXPECTEDSOLUTION=$(cat $solution_file)
+	if [ "$OUTPUT" != "$EXPECTEDSOLUTION" ]; then
+		echo "L'output de votre programme n'est pas celui attendu pour le fichier de requête $(basename $test_file)" >&4
+		echo "Nom attendu: '$EXPECTEDSOLUTION'" >&4
+		echo "Nom imprimé: '$OUTPUT'" >&4
+		echo -en "\tX"  >&3
+		TOUT_FONCTIONNE=false
+	else
+		echo "Le programme fonctionne comme prévu pour le fichier de requête $(basename $test_file)" >&4
+		echo -en "\tV"  >&3
+	fi
+done
+
+CONTINUE=false
+done
+
+echo -e "\n-----------------------------------------------------------------------"  >&4
+
+echo -e "Conclusion des tests:" >&4
+
+if [[ $TOUT_FONCTIONNE == true ]]; then
+		echo -e "\nFélicitations! Votre programme passe ces tests avec succès." >&4
+	else
+		echo -e "\nMalheureusement, votre programme ne passe pas correctement ces tests." >&4
+	fi
+	echo -en "\n"  >&3
+
+echo -e "-----------------------------------------------------------------------"  >&4
+
+echo -e "\nCommentaires:\n" >&4
+
+cd ../
+rm -rf $TEMPFOLDER
