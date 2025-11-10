@@ -64,8 +64,8 @@ $(DB_PIN) $(DB_PSQ) $(DB_PHR): $(DB_FASTA)
 # Cleanup
 # ==========================================
 clean:
-	@echo "=== Cleaning object files and binary ==="
-	rm -f *.o $(PRELIM)
+	@echo "=== Cleaning object files and executables ==="
+	rm -f *.o projetprelim projet projetopt
 
 veryclean: clean
 	@echo "=== Removing generated BLAST database files (keeping .fasta) ==="
