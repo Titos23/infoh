@@ -22,7 +22,6 @@ DB_PHR   = $(DB_FASTA).phr
 
 # ==========================================
 # Default target: build executable (and ensure DB exists)
-# testprelim runs: make projetprelim
 # ==========================================
 $(PRELIM): $(OBJ) | db       # db is an order-only prerequisite
 	@echo "=== Building $(PRELIM) ==="
