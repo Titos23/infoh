@@ -31,7 +31,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    cout << "Searching for exact match..." << endl;
 
     bool found = false;
     uint32_t foundIndex = 0;

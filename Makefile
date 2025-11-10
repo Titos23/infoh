@@ -1,6 +1,6 @@
 # ==========================================
 #  Makefile for BLAST Project (Projet Prelim)
-#  Generates BLAST DB version 4 automatically
+#  Generates BLAST DB (version 4 only)
 # ==========================================
 
 CXX = g++
@@ -21,26 +21,27 @@ DB_PHR   = $(DB_FASTA).phr
 QUERY    = query/P00533.fasta
 
 # ==========================================
-# Default target: compile, generate DB v4, then run
+# Default target: build executable + DB v4 + run
 # ==========================================
 all: $(PRELIM) $(DB_PIN) $(DB_PSQ) $(DB_PHR)
 	@echo "=== Running projetprelim ==="
 	./$(PRELIM) $(QUERY) $(DB_FASTA)
 
 # ==========================================
-# Compilation rules
+# Build executable
 # ==========================================
 $(PRELIM): $(OBJ)
+	@echo "=== Building $(PRELIM) ==="
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # ==========================================
-# BLAST database generation (version 4 only)
+# Generate BLAST database (version 4)
 # ==========================================
 $(DB_PIN) $(DB_PSQ) $(DB_PHR): $(DB_FASTA)
-	@echo "=== Generating BLAST database files (version 4) ==="
+	@echo "=== Generating BLAST database (version 4) ==="
 	@if [ -x ./makeblastdb ]; then \
 		echo "Using local makeblastdb..."; \
 		./makeblastdb -in $(DB_FASTA) -dbtype prot -blastdb_version 4; \
@@ -58,9 +59,11 @@ $(DB_PIN) $(DB_PSQ) $(DB_PHR): $(DB_FASTA)
 # Cleanup targets
 # ==========================================
 clean:
+	@echo "=== Cleaning object files and binary ==="
 	rm -f *.o $(PRELIM)
 
 veryclean: clean
-	rm -f $(DB_PIN) $(DB_PSQ) $(DB_PHR)
+	@echo "=== Removing generated BLAST database files ==="
+	rm -f $(DB_FASTA).pin $(DB_FASTA).psq $(DB_FASTA).phr $(DB_FASTA).pjs $(DB_FASTA).pot
 
 .PHONY: all clean veryclean
