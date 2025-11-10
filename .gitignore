@@ -7,6 +7,7 @@ query/
 # BLOSUM files
 blosum/
 
+
 # Binary files in the root folder
 /swipe
 /makeblastdb
@@ -17,3 +18,6 @@ blosum/
 
 # Object files
 *.o
+
+#environment files
+.vscode/

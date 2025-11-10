@@ -1,6 +1,21 @@
 #include "blastReader.h"
 #include <fstream>
 #include <iostream>
+#include "blastReader.h"
+#include <filesystem>
+using namespace std;
+
+string DATABASE_PIN;
+string DATABASE_PSQ;
+string DATABASE_PHR;
+
+void setDatabasePaths(const std::string& dbBasePath) {
+    std::string base = dbBasePath;
+
+    DATABASE_PIN = base + ".pin";
+    DATABASE_PSQ = base + ".psq";
+    DATABASE_PHR = base + ".phr";
+}
 
 using namespace std;
 
@@ -48,85 +63,122 @@ bool readPinFile(PinData& data) {
     file.read(reinterpret_cast<char*>(&data.maxSeqLength), 4);
     data.maxSeqLength = __builtin_bswap32(data.maxSeqLength);
 
-    cout << "[DEBUG] File position before offset tables: " << file.tellg() << endl;
+    
 
     // Resize vectors to hold offsets
     data.headerOffsets.resize(data.numSequences);
     data.sequenceOffsets.resize(data.numSequences);
 
     // Read header offset table
-for (uint32_t i = 0; i < data.numSequences; i++) {
-    file.read(reinterpret_cast<char*>(&data.headerOffsets[i]), 4);
-    if (file.fail()) {
-        cerr << "ERROR: Failed to read header offset " << i << endl;
-        return false;
+    for (uint32_t i = 0; i < data.numSequences; i++) {
+        file.read(reinterpret_cast<char*>(&data.headerOffsets[i]), 4);
+        if (file.fail()) {
+            cerr << "ERROR: Failed to read header offset " << i << endl;
+            return false;
+        }
+        data.headerOffsets[i] = __builtin_bswap32(data.headerOffsets[i]);
     }
-    data.headerOffsets[i] = __builtin_bswap32(data.headerOffsets[i]);
-}
 
-cout << "[DEBUG] File position after header offsets: " << file.tellg() << endl;
+    // Sip last offset value
+    file.seekg(4, ios::cur);
 
-// Read sequence offset table
-for (uint32_t i = 0; i < data.numSequences; i++) {
-    file.read(reinterpret_cast<char*>(&data.sequenceOffsets[i]), 4);
-    if (file.fail()) {
-        cerr << "ERROR: Failed to read sequence offset " << i << endl;
-        return false;
+
+    // Read sequence offset table
+    for (uint32_t i = 0; i < data.numSequences; i++) {
+        file.read(reinterpret_cast<char*>(&data.sequenceOffsets[i]), 4);
+        if (file.fail()) {
+            cerr << "ERROR: Failed to read sequence offset " << i << endl;
+            return false;
+        }
+        data.sequenceOffsets[i] = __builtin_bswap32(data.sequenceOffsets[i]);
+        }
+        file.close();
+        return true;
     }
-    data.sequenceOffsets[i] = __builtin_bswap32(data.sequenceOffsets[i]);
-}
-
-    cout << "[DEBUG] File position after sequence offsets: " << file.tellg() << endl;
-    cout << "[DEBUG] First 4 sequence offsets: " 
-         << data.sequenceOffsets[0] << ", "
-         << data.sequenceOffsets[1] << ", "
-         << data.sequenceOffsets[2] << ", "
-         << data.sequenceOffsets[3] << endl;
-
-    file.close();
-    return true;
-}
 
 string readSequenceFromPsq(uint32_t index, const PinData& pinData) {
-    // Open .psq file
     ifstream file(DATABASE_PSQ, ios::binary);
     if (!file.is_open()) {
         cerr << "ERROR: Cannot open file: " << DATABASE_PSQ << endl;
         return "";
     }
     
-    // Calculate sequence length
     uint32_t startOffset = pinData.sequenceOffsets[index];
     uint32_t endOffset;
     
-    // Handle last sequence specially (no next offset)
     if (index == pinData.numSequences - 1) {
-        // For last sequence, read until end of file
         file.seekg(0, ios::end);
         endOffset = file.tellg();
     } else {
         endOffset = pinData.sequenceOffsets[index + 1];
     }
     
-    uint32_t length = endOffset - startOffset;
+    // Subtract 1 for the NUL separator byte!
+    uint32_t length = endOffset - startOffset - 1;
     
-    // Go to start of sequence
     file.seekg(startOffset, ios::beg);
     
-    // Read the encoded bytes
     vector<uint8_t> encodedSeq(length);
     file.read(reinterpret_cast<char*>(encodedSeq.data()), length);
     
-    // Decode each byte to amino acid
+    // Skip the NUL separator byte
+    file.seekg(1, ios::cur);
+    
     string decodedSeq;
-    decodedSeq.reserve(length);  // Pre-allocate for efficiency
+    decodedSeq.reserve(length);
     
     for (uint8_t byte : encodedSeq) {
-        if (byte < 25) {  // Valid amino acid code
-            decodedSeq += AMINO_ACID_TABLE[byte];
-        }
+    if (byte < 28) {  
+        decodedSeq += AMINO_ACID_TABLE[byte];
     }
+}
     
     file.close();
     return decodedSeq;
+}
+
+string readHeaderFromPhr(uint32_t index, const PinData& pinData) {
+    ifstream file(DATABASE_PHR, ios::binary);
+    if (!file.is_open()) {
+        cerr << "ERROR: Cannot open file: " << DATABASE_PHR << endl;
+        return "";
+    }
+
+    uint32_t start = pinData.headerOffsets[index];
+    uint32_t end;
+
+    if (index == pinData.numSequences - 1) {
+        file.seekg(0, ios::end);
+        end = static_cast<uint32_t>(file.tellg());
+    } else {
+        end = pinData.headerOffsets[index + 1];
+    }
+
+    uint32_t length = end - start;
+    file.seekg(start, ios::beg);
+
+    vector<char> buffer(length);
+    file.read(buffer.data(), length);
+    file.close();
+
+    // --- Step 1: Keep only printable characters ---
+    string result;
+    for (char c : buffer) {
+        if (isprint((unsigned char)c))
+            result += c;
+    }
+
+    // --- Step 2: Find where the true header starts ("sp|") ---
+    size_t startPos = result.find("sp|");
+    if (startPos == string::npos)
+        return "";  // no header found, return empty
+
+    result = result.substr(startPos);
+
+    // --- Step 3: Trim everything after the first space (keep only ID part) ---
+    size_t spacePos = result.find(' ');
+    if (spacePos != string::npos)
+        result = result.substr(0, spacePos);
+
+    return result;
 }

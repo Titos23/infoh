@@ -6,9 +6,12 @@
 #include <cstdint>
 
 // Database binary file paths
-#define DATABASE_PIN "database/uniprot_sprot.fasta.pin"
-#define DATABASE_PSQ "database/uniprot_sprot.fasta.psq"
-#define DATABASE_PHR "database/uniprot_sprot.fasta.phr"
+extern std::string DATABASE_PIN;
+extern std::string DATABASE_PSQ;
+extern std::string DATABASE_PHR;
+
+void setDatabasePaths(const std::string& dbBasePath);
+
 
 // Structure to hold data from .pin file
 struct PinData {
@@ -22,7 +25,8 @@ struct PinData {
 };
 
 // Amino acid encoding table (index = byte value, value = amino acid letter)
-const char AMINO_ACID_TABLE[25] = {
+// Based on NCBI BLAST Database Format documentation (Farrar, 2010)
+const char AMINO_ACID_TABLE[28] = {
     '-',  // 0
     'A',  // 1
     'B',  // 2
@@ -44,10 +48,13 @@ const char AMINO_ACID_TABLE[25] = {
     'T',  // 18
     'V',  // 19
     'W',  // 20
-    'Y',  // 21
-    'Z',  // 22
-    'X',  // 23
-    '*'   // 24
+    'X',  // 21
+    'Y',  // 22
+    'Z',  // 23
+    'U',  // 24
+    '*',  // 25
+    'O',  // 26
+    'J'   // 27
 };
 
 
@@ -66,5 +73,15 @@ bool readPinFile(PinData& data);
  * @return The decoded amino acid sequence as a string
  */
 std::string readSequenceFromPsq(uint32_t index, const PinData& pinData);
+
+
+/**
+ * Reads the header (metadata) for a specific sequence from the .phr file
+ *
+ * @param index   The index of the sequence to read (0 to numSequences-1)
+ * @param pinData The PinData containing header offsets
+ * @return A human-readable string extracted from the header (approximation)
+ */
+std::string readHeaderFromPhr(uint32_t index, const PinData& pinData);
 
 #endif
