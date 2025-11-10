@@ -15,16 +15,15 @@ OBJ = $(SRC:.cpp=.o)
 
 # --- Database and query paths ---
 DB_FASTA = database/uniprot_sprot.fasta
-DB_BASE  = $(basename $(DB_FASTA))     # database/uniprot_sprot
-DB_PIN   = $(DB_BASE).pin
-DB_PSQ   = $(DB_BASE).psq
-DB_PHR   = $(DB_BASE).phr
+DB_PIN   = $(DB_FASTA).pin
+DB_PSQ   = $(DB_FASTA).psq
+DB_PHR   = $(DB_FASTA).phr
 QUERY    = query/P00533.fasta
 
 # ==========================================
 # Default target: build executable + DB v4 + run
 # ==========================================
-all: $(PRELIM) db
+all: $(PRELIM) $(DB_PIN) $(DB_PSQ) $(DB_PHR)
 	@echo "=== Running projetprelim ==="
 	./$(PRELIM) $(QUERY) $(DB_FASTA)
 
@@ -39,16 +38,16 @@ $(PRELIM): $(OBJ)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # ==========================================
-# BLAST database generation (version 4)
+# Generate BLAST database (version 4)
 # ==========================================
-db: $(DB_FASTA)
+$(DB_PIN) $(DB_PSQ) $(DB_PHR): $(DB_FASTA)
 	@echo "=== Generating BLAST database (version 4) ==="
 	@if [ -x ./makeblastdb ]; then \
 		echo "Using local makeblastdb..."; \
-		./makeblastdb -in $(DB_FASTA) -dbtype prot -blastdb_version 4 -out $(DB_BASE); \
+		./makeblastdb -in $(DB_FASTA) -dbtype prot -blastdb_version 4; \
 	elif command -v makeblastdb >/dev/null 2>&1; then \
 		echo "Using system makeblastdb..."; \
-		makeblastdb -in $(DB_FASTA) -dbtype prot -blastdb_version 4 -out $(DB_BASE); \
+		makeblastdb -in $(DB_FASTA) -dbtype prot -blastdb_version 4; \
 	else \
 		echo "Error: makeblastdb not found!"; \
 		echo "Please install BLAST+ or place makeblastdb in this folder."; \
@@ -65,6 +64,6 @@ clean:
 
 veryclean: clean
 	@echo "=== Removing generated BLAST database files ==="
-	rm -f $(DB_BASE).pin $(DB_BASE).psq $(DB_BASE).phr $(DB_BASE).pjs $(DB_BASE).pot
+	rm -f $(DB_FASTA).pin $(DB_FASTA).psq $(DB_FASTA).phr $(DB_FASTA).pjs $(DB_FASTA).pot
 
-.PHONY: all clean veryclean db
+.PHONY: all clean veryclean
