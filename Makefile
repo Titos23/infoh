@@ -1,9 +1,10 @@
 # ==========================================
 #  Makefile for BLAST Project (Projet Prelim)
-#  Generates BLAST DB (version 4 only)
+#  Generates BLAST DB (version 4) from FASTA
+#  Database files: uniprot_sprot.fasta.pin/.psq/.phr
 # ==========================================
 
-CXX = g++
+CXX      = g++
 CXXFLAGS = -std=c++17 -Wall -O2
 
 # --- Executable name ---
@@ -13,33 +14,30 @@ PRELIM = projetprelim
 SRC = main.cpp blastReader.cpp queryReader.cpp
 OBJ = $(SRC:.cpp=.o)
 
-# --- Database and query paths ---
+# --- Database paths (keep .fasta in basename) ---
 DB_FASTA = database/uniprot_sprot.fasta
 DB_PIN   = $(DB_FASTA).pin
 DB_PSQ   = $(DB_FASTA).psq
 DB_PHR   = $(DB_FASTA).phr
-QUERY    = query/P00533.fasta
 
 # ==========================================
-# Default target: build executable + DB v4 + run
+# Default target: build executable (and ensure DB exists)
+# testprelim runs: make projetprelim
 # ==========================================
-all: $(PRELIM) $(DB_PIN) $(DB_PSQ) $(DB_PHR)
-	@echo "=== Running projetprelim ==="
-	./$(PRELIM) $(QUERY) $(DB_FASTA)
-
-# ==========================================
-# Build executable
-# ==========================================
-$(PRELIM): $(OBJ)
+$(PRELIM): $(OBJ) | db       # db is an order-only prerequisite
 	@echo "=== Building $(PRELIM) ==="
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# Optionally: make without args will also build projetprelim
+all: $(PRELIM)
 
 # ==========================================
-# Generate BLAST database (version 4)
+# BLAST database generation (version 4)
+# Files: *.fasta.pin / *.fasta.psq / *.fasta.phr
 # ==========================================
+.PHONY: db
+db: $(DB_PIN) $(DB_PSQ) $(DB_PHR)
+
 $(DB_PIN) $(DB_PSQ) $(DB_PHR): $(DB_FASTA)
 	@echo "=== Generating BLAST database (version 4) ==="
 	@if [ -x ./makeblastdb ]; then \
@@ -56,14 +54,28 @@ $(DB_PIN) $(DB_PSQ) $(DB_PHR): $(DB_FASTA)
 	@echo "=== Database successfully generated (version 4)! ==="
 
 # ==========================================
-# Cleanup targets
+# Compilation rules
+# ==========================================
+%.o: %.cpp
+	@echo "Compiling $<..."
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# ==========================================
+# Cleanup
 # ==========================================
 clean:
 	@echo "=== Cleaning object files and binary ==="
 	rm -f *.o $(PRELIM)
 
 veryclean: clean
-	@echo "=== Removing generated BLAST database files ==="
-	rm -f $(DB_FASTA).pin $(DB_FASTA).psq $(DB_FASTA).phr $(DB_FASTA).pjs $(DB_FASTA).pot
+	@echo "=== Removing generated BLAST database files (keeping .fasta) ==="
+	rm -f \
+		$(DB_FASTA).pin \
+		$(DB_FASTA).psq \
+		$(DB_FASTA).phr \
+		$(DB_FASTA).pjs \
+		$(DB_FASTA).pot \
+		$(DB_FASTA).ptf \
+		$(DB_FASTA).pto
 
-.PHONY: all clean veryclean
+.PHONY:
