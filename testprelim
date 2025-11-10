@@ -18,7 +18,7 @@ echo -e "-----------------------------------------------------------------------
 echo -e "\n1) Vérification de la plateforme de test:\n" >&4
 ARCH=$(cat /etc/issue 2>/dev/null)
 ARCH=${ARCH%% \\*}
-if [ "$ARCH" = "Ubuntu 24.04.3 LTS" ]; then
+if [ "$ARCH" = "Ubuntu 22.04.5 LTS" ] || [ "$ARCH" = "Ubuntu 24.04.3 LTS" ]; then
 	echo -e "Test exécuté sur ${ARCH}: OK" >&4
 	echo -en "V"  >&3
 else
