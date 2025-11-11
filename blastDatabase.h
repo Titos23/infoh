@@ -1,5 +1,5 @@
-#ifndef BLAST_READER_H
-#define BLAST_READER_H
+#ifndef BLAST_DATABASE_H
+#define BLAST_DATABASE_H
 
 #include <string>
 #include <vector>

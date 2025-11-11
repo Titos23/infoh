@@ -1,6 +1,6 @@
 #include <iostream>
 #include <string>
-#include "blastReader.h"
+#include "blastDatabase.h"
 #include "queryReader.h"
 
 using namespace std;

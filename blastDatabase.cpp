@@ -1,4 +1,4 @@
-#include "blastReader.h"
+#include "blastDatabase.h"
 #include <fstream>
 #include <iostream>
 #include <cctype>

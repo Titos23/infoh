@@ -3,9 +3,9 @@ CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 
 # --- Source files ---
-SRC = main.cpp blastReader.cpp queryReader.cpp
+SRC = main.cpp blastDatabase.cpp queryReader.cpp blosumMatrix.cpp
 OBJ = $(SRC:.cpp=.o)
-HEADERS = blastReader.h queryReader.h
+HEADERS = blastDatabase.h queryReader.h blosumMatrix.h
 
 # ==========================================
 # Required targets (compile only)
