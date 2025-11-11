@@ -1,40 +1,34 @@
 #include "blastReader.h"
 #include <fstream>
 #include <iostream>
-#include "blastReader.h"
-#include <filesystem>
+#include <cctype>
+
 using namespace std;
 
-string DATABASE_PIN;
-string DATABASE_PSQ;
-string DATABASE_PHR;
-
-void setDatabasePaths(const std::string& dbBasePath) {
-    std::string base = dbBasePath;
-
-    DATABASE_PIN = base + ".pin";
-    DATABASE_PSQ = base + ".psq";
-    DATABASE_PHR = base + ".phr";
+BlastDatabase::BlastDatabase(const std::string& dbBasePath) 
+    : databasePinPath(dbBasePath + ".pin"),
+      databasePsqPath(dbBasePath + ".psq"),
+      databasePhrPath(dbBasePath + ".phr"),
+      isLoaded(false) {
 }
 
-using namespace std;
-
-bool readPinFile(PinData& data) {
-    // Open .pin file using the define
-    ifstream file(DATABASE_PIN, ios::binary);
+bool BlastDatabase::loadPinFile() {
+    // Open .pin file
+    ifstream file(databasePinPath, ios::binary);
     
     if (!file.is_open()) {
-        cerr << "ERROR: Cannot open file: " << DATABASE_PIN << endl;
+        cerr << "ERROR: Cannot open file: " << databasePinPath << endl;
+        isLoaded = false;
         return false;
     }
 
     // Read version (4 bytes, big-endian)
-    file.read(reinterpret_cast<char*>(&data.version), 4);
-    data.version = __builtin_bswap32(data.version);
+    file.read(reinterpret_cast<char*>(&pinData.version), 4);
+    pinData.version = __builtin_bswap32(pinData.version);
 
     // Read type (4 bytes, big-endian)
-    file.read(reinterpret_cast<char*>(&data.type), 4);
-    data.type = __builtin_bswap32(data.type);
+    file.read(reinterpret_cast<char*>(&pinData.type), 4);
+    pinData.type = __builtin_bswap32(pinData.type);
 
     // Read title length (4 bytes, big-endian)
     uint32_t titleLength;
@@ -53,53 +47,54 @@ bool readPinFile(PinData& data) {
     file.seekg(dateLength, ios::cur);
 
     // Read number of sequences (4 bytes, big-endian)
-    file.read(reinterpret_cast<char*>(&data.numSequences), 4);
-    data.numSequences = __builtin_bswap32(data.numSequences);
+    file.read(reinterpret_cast<char*>(&pinData.numSequences), 4);
+    pinData.numSequences = __builtin_bswap32(pinData.numSequences);
 
     // Read number of residues (8 bytes, little-endian - no swap!)
-    file.read(reinterpret_cast<char*>(&data.numResidues), 8);
+    file.read(reinterpret_cast<char*>(&pinData.numResidues), 8);
 
     // Read maximum sequence length (4 bytes, big-endian)
-    file.read(reinterpret_cast<char*>(&data.maxSeqLength), 4);
-    data.maxSeqLength = __builtin_bswap32(data.maxSeqLength);
-
-    
+    file.read(reinterpret_cast<char*>(&pinData.maxSeqLength), 4);
+    pinData.maxSeqLength = __builtin_bswap32(pinData.maxSeqLength);
 
     // Resize vectors to hold offsets
-    data.headerOffsets.resize(data.numSequences);
-    data.sequenceOffsets.resize(data.numSequences);
+    pinData.headerOffsets.resize(pinData.numSequences);
+    pinData.sequenceOffsets.resize(pinData.numSequences);
 
     // Read header offset table
-    for (uint32_t i = 0; i < data.numSequences; i++) {
-        file.read(reinterpret_cast<char*>(&data.headerOffsets[i]), 4);
+    for (uint32_t i = 0; i < pinData.numSequences; i++) {
+        file.read(reinterpret_cast<char*>(&pinData.headerOffsets[i]), 4);
         if (file.fail()) {
             cerr << "ERROR: Failed to read header offset " << i << endl;
+            isLoaded = false;
             return false;
         }
-        data.headerOffsets[i] = __builtin_bswap32(data.headerOffsets[i]);
+        pinData.headerOffsets[i] = __builtin_bswap32(pinData.headerOffsets[i]);
     }
 
-    // Sip last offset value
+    // Skip last offset value
     file.seekg(4, ios::cur);
 
-
     // Read sequence offset table
-    for (uint32_t i = 0; i < data.numSequences; i++) {
-        file.read(reinterpret_cast<char*>(&data.sequenceOffsets[i]), 4);
+    for (uint32_t i = 0; i < pinData.numSequences; i++) {
+        file.read(reinterpret_cast<char*>(&pinData.sequenceOffsets[i]), 4);
         if (file.fail()) {
             cerr << "ERROR: Failed to read sequence offset " << i << endl;
+            isLoaded = false;
             return false;
         }
-        data.sequenceOffsets[i] = __builtin_bswap32(data.sequenceOffsets[i]);
-        }
-        file.close();
-        return true;
+        pinData.sequenceOffsets[i] = __builtin_bswap32(pinData.sequenceOffsets[i]);
     }
+    
+    file.close();
+    isLoaded = true;
+    return true;
+}
 
-string readSequenceFromPsq(uint32_t index, const PinData& pinData) {
-    ifstream file(DATABASE_PSQ, ios::binary);
+string BlastDatabase::readSequence(uint32_t index) const {
+    ifstream file(databasePsqPath, ios::binary);
     if (!file.is_open()) {
-        cerr << "ERROR: Cannot open file: " << DATABASE_PSQ << endl;
+        cerr << "ERROR: Cannot open file: " << databasePsqPath << endl;
         return "";
     }
     
@@ -128,19 +123,19 @@ string readSequenceFromPsq(uint32_t index, const PinData& pinData) {
     decodedSeq.reserve(length);
     
     for (uint8_t byte : encodedSeq) {
-    if (byte < 28) {  
-        decodedSeq += AMINO_ACID_TABLE[byte];
+        if (byte < 28) {  
+            decodedSeq += AMINO_ACID_TABLE[byte];
+        }
     }
-}
     
     file.close();
     return decodedSeq;
 }
 
-string readHeaderFromPhr(uint32_t index, const PinData& pinData) {
-    ifstream file(DATABASE_PHR, ios::binary);
+string BlastDatabase::readHeader(uint32_t index) const {
+    ifstream file(databasePhrPath, ios::binary);
     if (!file.is_open()) {
-        cerr << "ERROR: Cannot open file: " << DATABASE_PHR << endl;
+        cerr << "ERROR: Cannot open file: " << databasePhrPath << endl;
         return "";
     }
 

@@ -2,11 +2,10 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <sstream>
 
 using namespace std;
 
-string readQuery(const string& queryPath) {
+string QueryReader::readQuery(const string& queryPath) {
     ifstream file(queryPath);
     if (!file.is_open()) {
         cerr << "ERROR: Could not open query file: " << queryPath << endl;

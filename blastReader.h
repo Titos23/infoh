@@ -5,25 +5,6 @@
 #include <vector>
 #include <cstdint>
 
-// Database binary file paths
-extern std::string DATABASE_PIN;
-extern std::string DATABASE_PSQ;
-extern std::string DATABASE_PHR;
-
-void setDatabasePaths(const std::string& dbBasePath);
-
-
-// Structure to hold data from .pin file
-struct PinData {
-    uint32_t version;
-    uint32_t type;
-    uint32_t numSequences;
-    uint64_t numResidues;
-    uint32_t maxSeqLength;
-    std::vector<uint32_t> headerOffsets;
-    std::vector<uint32_t> sequenceOffsets;
-};
-
 // Amino acid encoding table (index = byte value, value = amino acid letter)
 // Based on NCBI BLAST Database Format documentation (Farrar, 2010)
 const char AMINO_ACID_TABLE[28] = {
@@ -57,31 +38,67 @@ const char AMINO_ACID_TABLE[28] = {
     'J'   // 27
 };
 
+// Structure to hold data from .pin file
+struct PinData {
+    uint32_t version;
+    uint32_t type;
+    uint32_t numSequences;
+    uint64_t numResidues;
+    uint32_t maxSeqLength;
+    std::vector<uint32_t> headerOffsets;
+    std::vector<uint32_t> sequenceOffsets;
+};
 
 /**
- * Reads the .pin file (BLAST index) and extracts metadata and offset tables
- * 
- * @return true if successful, false otherwise
+ * BlastDatabase class for reading BLAST database files
+ * Encapsulates all database reading operations
  */
-bool readPinFile(PinData& data);
+class BlastDatabase {
+private:
+    std::string databasePinPath;
+    std::string databasePsqPath;
+    std::string databasePhrPath;
+    PinData pinData;
+    bool isLoaded;
 
-/**
- * Reads a specific sequence from the .psq file
- * 
- * @param index The index of the sequence to read (0 to numSequences-1)
- * @param pinData The PinData containing sequence offsets
- * @return The decoded amino acid sequence as a string
- */
-std::string readSequenceFromPsq(uint32_t index, const PinData& pinData);
+public:
+    /**
+     * Constructor - sets the database base path
+     * @param dbBasePath Base path to the database files (without extension)
+     */
+    BlastDatabase(const std::string& dbBasePath);
 
+    /**
+     * Loads the .pin file and reads metadata
+     * @return true if successful, false otherwise
+     */
+    bool loadPinFile();
 
-/**
- * Reads the header (metadata) for a specific sequence from the .phr file
- *
- * @param index   The index of the sequence to read (0 to numSequences-1)
- * @param pinData The PinData containing header offsets
- * @return A human-readable string extracted from the header (approximation)
- */
-std::string readHeaderFromPhr(uint32_t index, const PinData& pinData);
+    /**
+     * Reads a specific sequence from the .psq file
+     * @param index The index of the sequence to read (0 to numSequences-1)
+     * @return The decoded amino acid sequence as a string
+     */
+    std::string readSequence(uint32_t index) const;
+
+    /**
+     * Reads the header (metadata) for a specific sequence from the .phr file
+     * @param index The index of the sequence to read (0 to numSequences-1)
+     * @return A human-readable string extracted from the header
+     */
+    std::string readHeader(uint32_t index) const;
+
+    /**
+     * Gets the number of sequences in the database
+     * @return Number of sequences
+     */
+    uint32_t getNumSequences() const { return pinData.numSequences; }
+
+    /**
+     * Checks if the database has been loaded
+     * @return true if loaded, false otherwise
+     */
+    bool loaded() const { return isLoaded; }
+};
 
 #endif
