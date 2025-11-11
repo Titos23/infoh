@@ -1,50 +1,50 @@
-# ==========================================
-#  Makefile for BLAST Project (Projet Prelim)
-#  Generates BLAST DB (version 4) from FASTA
-#  Database files: uniprot_sprot.fasta.pin/.psq/.phr
-# ==========================================
 
-CXX      = g++
-CXXFLAGS = -std=c++17 -Wall -O2
-
-# --- Executable name ---
-PRELIM = projetprelim
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 
 # --- Source files ---
 SRC = main.cpp blastReader.cpp queryReader.cpp
 OBJ = $(SRC:.cpp=.o)
-
-# --- Database paths (keep .fasta in basename) ---
-DB_FASTA = database/uniprot_sprot.fasta
-DB_PIN   = $(DB_FASTA).pin
-DB_PSQ   = $(DB_FASTA).psq
-DB_PHR   = $(DB_FASTA).phr
+HEADERS = blastReader.h queryReader.h
 
 # ==========================================
-# Default target: build executable (and ensure DB exists)
-# testprelim runs: make projetprelim
+# Required targets (compile only)
 # ==========================================
-$(PRELIM): $(OBJ) | db       # db is an order-only prerequisite
-	@echo "=== Building $(PRELIM) ==="
-	$(CXX) $(CXXFLAGS) -o $@ $^
 
-# Optionally: make without args will also build projetprelim
-all: $(PRELIM)
+# Preliminary version (intermediate deadline)
+projetprelim: $(OBJ)
+	
+	$(CXX) $(CXXFLAGS) -o projetprelim $(OBJ)
+	
 
+# Final version 
+projet: $(OBJ)
+	@echo "=== Building projet ==="
+	$(CXX) $(CXXFLAGS) -o projet $(OBJ)
+	
+
+# Optimized version 
+projetopt: $(OBJ)
+	@echo "=== Building projetopt ==="
+	$(CXX) $(CXXFLAGS) -O3 -march=native -o projetopt $(OBJ)
+	@echo "=== projetopt ready! ==="
 
 # ==========================================
 # Compilation rules
 # ==========================================
-%.o: %.cpp
+%.o: %.cpp $(HEADERS)
 	@echo "Compiling $<..."
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # ==========================================
-# Cleanup
+# Cleanup targets
 # ==========================================
 clean:
-	@echo "=== Cleaning object files and executables ==="
 	rm -f *.o projetprelim projet projetopt
 
+veryclean: clean
 
-.PHONY:
+# ==========================================
+# Phony targets
+# ==========================================
+.PHONY: projetprelim projet projetopt clean veryclean
