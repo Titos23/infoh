@@ -6,23 +6,25 @@
 
 /**
  * SmithWaterman class for local sequence alignment
+ * Implementation notes: uses 1D arrays and compiler hints to improve
+ * memory locality and enable vectorization where applicable.
  */
 class SmithWaterman {
 public:
     /**
-     * Calculates Smith-Waterman local alignment score
+     * Performs Smith-Waterman local alignment
      * @param query Query sequence
-     * @param target Target sequence from database
-     * @param blosum BLOSUM scoring matrix
-     * @param gapOpen Gap opening penalty (positive value, e.g., 11)
-     * @param gapExtend Gap extension penalty (positive value, e.g., 1)
+     * @param target Target sequence
+     * @param blosum BLOSUM substitution matrix
+     * @param gapOpen Gap opening penalty
+     * @param gapExtend Gap extension penalty
      * @return Maximum alignment score
      */
     static int align(const std::string& query,
-                     const std::string& target,
-                     const BlosumMatrix& blosum,
-                     int gapOpen,
-                     int gapExtend);
+                    const std::string& target,
+                    const BlosumMatrix& blosum,
+                    int gapOpen,
+                    int gapExtend);
 };
 
 #endif

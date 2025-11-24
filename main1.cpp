@@ -3,7 +3,6 @@
 #include <vector>
 #include <algorithm>
 #include <thread>
-#include <mutex>
 #include <atomic>
 #include <chrono>
 #include <iomanip>
@@ -19,7 +18,7 @@ struct AlignmentResult {
     int score;
     
     bool operator<(const AlignmentResult& other) const {
-        return score > other.score;
+        return score > other.score;  // Descending order
     }
 };
 
@@ -27,7 +26,7 @@ struct AlignmentResult {
 atomic<uint32_t> processedCount(0);
 atomic<uint64_t> totalCells(0);
 
-// Function to draw progress bar
+// Progress bar
 void drawProgressBar(uint32_t current, uint32_t total, 
                      double elapsed, double gcups) {
     const int barWidth = 50;
@@ -66,6 +65,7 @@ int main(int argc, char* argv[]) {
     int gapOpen = stoi(argv[4]);
     int gapExtend = stoi(argv[5]);
     
+    // Auto-detect number of CPU cores (can be overridden via command-line)
     int numThreads = (argc == 7) ? stoi(argv[6]) : thread::hardware_concurrency();
     if (numThreads < 1) numThreads = 1;
     
@@ -116,13 +116,13 @@ int main(int argc, char* argv[]) {
     }
     uint64_t totalEstimatedCells = (estimatedCells / 1000) * totalSeqs;
     cerr << " ✓\n";
-    cerr << "  Estimated cells: " << (totalEstimatedCells / 1e9) << " billion\n\n";
+    cerr << "  Estimated cells: " << fixed << setprecision(1) << (totalEstimatedCells / 1e9) << " billion\n\n";
 
     // Pre-allocate results
     vector<AlignmentResult> results(totalSeqs);
     
-    // Worker function
-    auto alignChunk = [&](uint32_t start, uint32_t end, int threadId) {
+    // Worker function for multi-threading: process a range of sequences
+    auto alignChunk = [&](uint32_t start, uint32_t end) {
         for (uint32_t i = start; i < end; i++) {
             string targetSeq = database.readSequence(i);
             
@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
     cerr << "Starting alignment...\n\n";
     auto startTime = chrono::high_resolution_clock::now();
     
-    // Launch threads
+    // Launch worker threads to process chunks in parallel
     vector<thread> threads;
     uint32_t chunkSize = (totalSeqs + numThreads - 1) / numThreads;
     
@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
         uint32_t end = min(start + chunkSize, totalSeqs);
         
         if (start < totalSeqs) {
-            threads.emplace_back(alignChunk, start, end, t);
+            threads.emplace_back(alignChunk, start, end);
         }
     }
     
@@ -209,7 +209,7 @@ int main(int argc, char* argv[]) {
     
     // Analyze score distribution
     cerr << "Score distribution:\n";
-    int scoreRanges[6] = {0}; // 0, 1-10, 11-50, 51-100, 101-500, 500+
+    int scoreRanges[6] = {0};
     for (const auto& r : results) {
         if (r.score == 0) scoreRanges[0]++;
         else if (r.score <= 10) scoreRanges[1]++;
@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
     }
     
     cerr << "  Score = 0:        " << scoreRanges[0] << " (" 
-         << (100.0 * scoreRanges[0] / totalSeqs) << "%)\n";
+         << fixed << setprecision(1) << (100.0 * scoreRanges[0] / totalSeqs) << "%)\n";
     cerr << "  Score 1-10:       " << scoreRanges[1] << " (" 
          << (100.0 * scoreRanges[1] / totalSeqs) << "%)\n";
     cerr << "  Score 11-50:      " << scoreRanges[2] << " (" 
@@ -233,7 +233,7 @@ int main(int argc, char* argv[]) {
          << (100.0 * scoreRanges[5] / totalSeqs) << "%)\n";
     cerr << "\n";
 
-    // Output top 20 to stderr (for display)
+    // Output top 20 to stderr (nice display)
     cerr << "╔════════════════════════════════════════════════════════╗\n";
     cerr << "║                    Top 20 Results                      ║\n";
     cerr << "╚════════════════════════════════════════════════════════╝\n";
@@ -255,4 +255,3 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
-

@@ -1,50 +1,34 @@
+# ==========================================
+#  Makefile - Build configuration (release flags)
+# ==========================================
 
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 
-# --- Source files ---
-SRC = main.cpp blastDatabase.cpp queryReader.cpp blosumMatrix.cpp
+# Compiler flags for release build (tuned for performance on common x86 CPUs)
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -march=native -mtune=native \
+           -ffast-math -funroll-loops -finline-functions \
+           -fomit-frame-pointer -ftree-vectorize -pthread
+
+# LTO flag separate (causes issues in some systems)
+LTO_FLAG = -flto
+
+# Source files
+SRC = main.cpp blastDatabase.cpp queryReader.cpp blosumMatrix.cpp smithWaterman.cpp
 OBJ = $(SRC:.cpp=.o)
-HEADERS = blastDatabase.h queryReader.h blosumMatrix.h
+HEADERS = blastDatabase.h queryReader.h blosumMatrix.h smithWaterman.h
 
-# ==========================================
-# Required targets (compile only)
-# ==========================================
+TARGET = projet
 
-# Preliminary version (intermediate deadline)
-projetprelim: $(OBJ)
-	
-	$(CXX) $(CXXFLAGS) -o projetprelim $(OBJ)
-	
+# Build
+all: $(TARGET)
 
-# Final version 
-projet: $(OBJ)
-	@echo "=== Building projet ==="
-	$(CXX) $(CXXFLAGS) -o projet $(OBJ)
-	
+$(TARGET): $(SRC) $(HEADERS)
+	@echo "=== Building with release flags ==="
+	$(CXX) $(CXXFLAGS) $(LTO_FLAG) -o $(TARGET) $(SRC)
+	@echo "✓ Build complete!"
 
-# Optimized version 
-projetopt: $(OBJ)
-	@echo "=== Building projetopt ==="
-	$(CXX) $(CXXFLAGS) -O3 -march=native -o projetopt $(OBJ)
-	@echo "=== projetopt ready! ==="
-
-# ==========================================
-# Compilation rules
-# ==========================================
-%.o: %.cpp $(HEADERS)
-	@echo "Compiling $<..."
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-# ==========================================
-# Cleanup targets
-# ==========================================
 clean:
-	rm -f *.o projetprelim projet projetopt
+	@echo "Cleaning..."
+	rm -f $(OBJ) $(TARGET) *.gcda *.gcno
 
-veryclean: clean
-
-# ==========================================
-# Phony targets
-# ==========================================
-.PHONY: projetprelim projet projetopt clean veryclean
+.PHONY: all clean
